@@ -1,22 +1,28 @@
-$subscriptions = Get-AzSubscription
+Connect-AzAccount
 
 $results = @()
 
-foreach ($subscription in $subscriptions) {    
+$subscriptions = Get-AzSubscription
+foreach ($subscription in $subscriptions) {
     Set-AzContext -SubscriptionId $subscription.Id
 
     $resourceGroups = Get-AzResourceGroup
-
     foreach ($resourceGroup in $resourceGroups) {
-        $resourceGroupData = @{
-            'ResourceGroup Name'         = $resourceGroup.ResourceGroupName
-            'Subscription ID'            = $resourceGroup.SubscriptionId
-            'Location'                   = $resourceGroup.Location
-            'Tags'                       = $resourceGroup.Tags | Out-String
+
+        $resourceGroupTags = $resourceGroup.Tags
+        if ($resourceGroupTags) {
+            $resourceGroupTagString = ($resourceGroupTags.GetEnumerator() | ForEach-Object { "$($_.Key):$($_.Value)" }) -join ","
+        }
+        else {
+            $resourceGroupTagString = $null
         }
 
-        $results += New-Object PSObject -Property $resourceGroupData
+        $results += [PSCustomObject] @{
+            SubscriptionName  = $subscription.Name
+            ResourceGroup     = $resourceGroup.ResourceGroupName
+            ResourceGroupTags = $resourceGroupTagString
+        }
     }
 }
 
-$results | Export-Csv -Path '.\resource-groups.csv'
+$results | Export-Csv -Path ".\resource-group-tags.csv" -NoTypeInformation
